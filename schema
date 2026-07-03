@@ -1,0 +1,132 @@
+/*
+================================================================================
+ PHARMACY INVENTORY & SALES MANAGEMENT SYSTEM
+ File: 01_schema_and_data.sql
+ Purpose: Creates all tables, sequences, and inserts sample data.
+ Author: Group [__]  |  Course: DPR400210 - Database Programming
+================================================================================
+
+ PROBLEM DEFINITION
+ -------------------
+ Small pharmacies struggle to track medicine stock levels, know when to
+ reorder, and analyze which products generate the most revenue. This system
+ solves that by modeling Suppliers, Medicines, Stock, and Sales, then using
+ PL/SQL to automate sales processing, stock control, and reporting.
+
+ ENTITY RELATIONSHIP OVERVIEW
+ -----------------------------
+ SUPPLIERS (1) ---- (M) MEDICINES (1) ---- (1) STOCK
+                          |
+                          | (1)
+                          |
+                        (M) SALES
+================================================================================
+*/
+
+-- Clean slate (safe to ignore errors if objects don't exist yet)
+DROP TABLE sales CASCADE CONSTRAINTS;
+DROP TABLE stock CASCADE CONSTRAINTS;
+DROP TABLE medicines CASCADE CONSTRAINTS;
+DROP TABLE suppliers CASCADE CONSTRAINTS;
+
+DROP SEQUENCE seq_supplier;
+DROP SEQUENCE seq_medicine;
+DROP SEQUENCE seq_stock;
+DROP SEQUENCE seq_sale;
+
+-- ================================
+-- SEQUENCES
+-- ================================
+CREATE SEQUENCE seq_supplier START WITH 1 INCREMENT BY 1;
+CREATE SEQUENCE seq_medicine START WITH 1 INCREMENT BY 1;
+CREATE SEQUENCE seq_stock    START WITH 1 INCREMENT BY 1;
+CREATE SEQUENCE seq_sale     START WITH 1 INCREMENT BY 1;
+
+-- ================================
+-- TABLE: SUPPLIERS
+-- ================================
+CREATE TABLE suppliers (
+    supplier_id   NUMBER PRIMARY KEY,
+    supplier_name VARCHAR2(100) NOT NULL,
+    phone         VARCHAR2(20),
+    email         VARCHAR2(100)
+);
+
+-- ================================
+-- TABLE: MEDICINES
+-- ================================
+CREATE TABLE medicines (
+    medicine_id   NUMBER PRIMARY KEY,
+    medicine_name VARCHAR2(100) NOT NULL,
+    category      VARCHAR2(50),
+    unit_price    NUMBER(10,2) NOT NULL CHECK (unit_price >= 0),
+    supplier_id   NUMBER REFERENCES suppliers(supplier_id),
+    expiry_date   DATE
+);
+
+-- ================================
+-- TABLE: STOCK  (one row per medicine)
+-- ================================
+CREATE TABLE stock (
+    stock_id           NUMBER PRIMARY KEY,
+    medicine_id        NUMBER UNIQUE REFERENCES medicines(medicine_id),
+    quantity_available  NUMBER DEFAULT 0 CHECK (quantity_available >= 0),
+    reorder_level       NUMBER DEFAULT 20,
+    last_restock_date   DATE
+);
+
+-- ================================
+-- TABLE: SALES
+-- ================================
+CREATE TABLE sales (
+    sale_id        NUMBER PRIMARY KEY,
+    medicine_id    NUMBER REFERENCES medicines(medicine_id),
+    quantity_sold  NUMBER NOT NULL CHECK (quantity_sold > 0),
+    sale_date      DATE DEFAULT SYSDATE,
+    total_amount   NUMBER(10,2)
+);
+
+-- ================================
+-- SAMPLE DATA
+-- ================================
+
+-- Suppliers
+INSERT INTO suppliers VALUES (seq_supplier.NEXTVAL, 'MediPlus Ltd',      '0788111222', 'sales@mediplus.rw');
+INSERT INTO suppliers VALUES (seq_supplier.NEXTVAL, 'PharmaCare Rwanda', '0788333444', 'contact@pharmacare.rw');
+INSERT INTO suppliers VALUES (seq_supplier.NEXTVAL, 'HealthLink Supplies','0788555666', 'info@healthlink.rw');
+
+-- Medicines
+INSERT INTO medicines VALUES (seq_medicine.NEXTVAL, 'Paracetamol 500mg', 'Analgesic',   500,  1, DATE '2027-06-30');
+INSERT INTO medicines VALUES (seq_medicine.NEXTVAL, 'Amoxicillin 250mg', 'Antibiotic',  1200, 1, DATE '2026-12-31');
+INSERT INTO medicines VALUES (seq_medicine.NEXTVAL, 'Ibuprofen 400mg',   'Analgesic',   700,  2, DATE '2027-03-15');
+INSERT INTO medicines VALUES (seq_medicine.NEXTVAL, 'Vitamin C 1000mg',  'Supplement',  1500, 2, DATE '2027-09-01');
+INSERT INTO medicines VALUES (seq_medicine.NEXTVAL, 'Cough Syrup 100ml', 'Respiratory', 2500, 3, DATE '2026-11-20');
+INSERT INTO medicines VALUES (seq_medicine.NEXTVAL, 'ORS Sachets',       'Rehydration', 300,  3, DATE '2027-01-10');
+
+-- Stock (initial levels)
+INSERT INTO stock VALUES (seq_stock.NEXTVAL, 1, 150, 30, DATE '2026-06-01');
+INSERT INTO stock VALUES (seq_stock.NEXTVAL, 2, 15,  20, DATE '2026-06-01');  -- below reorder level
+INSERT INTO stock VALUES (seq_stock.NEXTVAL, 3, 80,  25, DATE '2026-06-05');
+INSERT INTO stock VALUES (seq_stock.NEXTVAL, 4, 40,  20, DATE '2026-06-05');
+INSERT INTO stock VALUES (seq_stock.NEXTVAL, 5, 10,  15, DATE '2026-06-10');  -- below reorder level
+INSERT INTO stock VALUES (seq_stock.NEXTVAL, 6, 200, 50, DATE '2026-06-10');
+
+-- Sales history (spread across dates so window functions have something to show)
+INSERT INTO sales VALUES (seq_sale.NEXTVAL, 1, 10, DATE '2026-06-15', 10*500);
+INSERT INTO sales VALUES (seq_sale.NEXTVAL, 1, 5,  DATE '2026-06-18', 5*500);
+INSERT INTO sales VALUES (seq_sale.NEXTVAL, 2, 3,  DATE '2026-06-16', 3*1200);
+INSERT INTO sales VALUES (seq_sale.NEXTVAL, 3, 8,  DATE '2026-06-17', 8*700);
+INSERT INTO sales VALUES (seq_sale.NEXTVAL, 4, 6,  DATE '2026-06-19', 6*1500);
+INSERT INTO sales VALUES (seq_sale.NEXTVAL, 5, 4,  DATE '2026-06-20', 4*2500);
+INSERT INTO sales VALUES (seq_sale.NEXTVAL, 6, 20, DATE '2026-06-21', 20*300);
+INSERT INTO sales VALUES (seq_sale.NEXTVAL, 1, 7,  DATE '2026-06-22', 7*500);
+INSERT INTO sales VALUES (seq_sale.NEXTVAL, 2, 2,  DATE '2026-06-23', 2*1200);
+INSERT INTO sales VALUES (seq_sale.NEXTVAL, 3, 5,  DATE '2026-06-24', 5*700);
+
+COMMIT;
+
+-- Quick sanity checks
+SELECT * FROM suppliers;
+SELECT * FROM medicines;
+SELECT * FROM stock;
+SELECT * FROM sales;
