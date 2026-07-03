@@ -1,0 +1,65 @@
+/*
+================================================================================
+ File: 05_anonymous_blocks.sql
+ Purpose: ANONYMOUS BLOCKS demonstrating procedural logic and error handling
+================================================================================
+*/
+
+SET SERVEROUTPUT ON;
+
+-- ------------------------------------------------------------------
+-- BLOCK 1: Loop through all medicines and print a low-stock alert
+--          using a cursor and the fn_stock_status FUNCTION.
+-- ------------------------------------------------------------------
+DECLARE
+    CURSOR c_medicines IS
+        SELECT medicine_id, medicine_name FROM medicines;
+    v_status VARCHAR2(20);
+BEGIN
+    DBMS_OUTPUT.PUT_LINE('---- STOCK STATUS REPORT ----');
+    FOR med IN c_medicines LOOP
+        v_status := fn_stock_status(med.medicine_id);
+        IF v_status = 'LOW STOCK' THEN
+            DBMS_OUTPUT.PUT_LINE('ALERT: ' || med.medicine_name || ' is LOW STOCK. Please reorder.');
+        ELSE
+            DBMS_OUTPUT.PUT_LINE(med.medicine_name || ' stock is ' || v_status || '.');
+        END IF;
+    END LOOP;
+END;
+/
+
+-- ------------------------------------------------------------------
+-- BLOCK 2: Attempt a sale that exceeds available stock, to demonstrate
+--          exception handling raised inside sp_add_sale.
+-- ------------------------------------------------------------------
+DECLARE
+    v_medicine_id NUMBER := 5;   -- Cough Syrup, only 10 units left (after earlier tests)
+    v_quantity    NUMBER := 9999; -- deliberately too many
+BEGIN
+    sp_add_sale(v_medicine_id, v_quantity);
+    DBMS_OUTPUT.PUT_LINE('Sale succeeded.');
+EXCEPTION
+    WHEN OTHERS THEN
+        DBMS_OUTPUT.PUT_LINE('Sale failed as expected: ' || SQLERRM);
+END;
+/
+
+-- ------------------------------------------------------------------
+-- BLOCK 3: Summarize total revenue across ALL medicines using
+--          fn_total_revenue in a loop, and print a grand total.
+-- ------------------------------------------------------------------
+DECLARE
+    CURSOR c_medicines IS
+        SELECT medicine_id, medicine_name FROM medicines;
+    v_revenue      NUMBER;
+    v_grand_total  NUMBER := 0;
+BEGIN
+    DBMS_OUTPUT.PUT_LINE('---- REVENUE SUMMARY ----');
+    FOR med IN c_medicines LOOP
+        v_revenue := fn_total_revenue(med.medicine_id);
+        v_grand_total := v_grand_total + v_revenue;
+        DBMS_OUTPUT.PUT_LINE(med.medicine_name || ': ' || v_revenue || ' RWF');
+    END LOOP;
+    DBMS_OUTPUT.PUT_LINE('TOTAL REVENUE (ALL MEDICINES): ' || v_grand_total || ' RWF');
+END;
+/
